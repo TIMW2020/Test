@@ -1,4 +1,4 @@
-name: Build Pop!_OS ISO
+name: Build Pop!_OS Noble ISO
 
 on:
   push:
@@ -7,34 +7,39 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-    - name: Set up QEMU
-      run: sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virt-manager
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-    - name: Install Required Dependencies
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools
-        
-    - name: Clone Pop!_OS Build Repository
-      run: git clone https://github.com/pop-os/iso.git popos-iso
+        sudo apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin
 
-    - name: Configure and Build ISO
-      working-directory: popos-iso
+    - name: Build Pop!_OS Noble ISO
       run: |
-        sudo make configure
-        sudo make build
+        ./scripts/build_iso.sh
 
-    - name: Archive ISO
-      uses: actions/upload-artifact@v2
+    - name: Upload ISO artifact
+      if: success()
+      uses: actions/upload-artifact@v3
       with:
-        name: popos-noble.iso
-        path: popos-iso/build/live-image-amd64.hybrid.iso
+        name: popos-noble-iso
+        path: path/to/your/built/iso/file.iso
